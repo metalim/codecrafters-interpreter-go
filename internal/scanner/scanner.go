@@ -17,6 +17,8 @@ const (
 	queueEmpty queue = iota
 	queueEqual
 	queueBang
+	queueLess
+	queueGreater
 )
 
 func (s *Scanner) ScanTokens() {
@@ -46,9 +48,9 @@ func (s *Scanner) ScanTokens() {
 		case '*':
 			s.Next <- Token{Type: STAR, Lexeme: "*", Line: s.line}
 		case '<':
-			s.Next <- Token{Type: LESS, Lexeme: "<", Line: s.line}
+			s.queue = queueLess
 		case '>':
-			s.Next <- Token{Type: MORE, Lexeme: ">", Line: s.line}
+			s.queue = queueGreater
 		case '=':
 			s.queue = queueEqual
 		case '!':
@@ -75,6 +77,7 @@ func (s *Scanner) handleQueue(next rune) bool {
 		s.Next <- Token{Type: EQUAL, Lexeme: "=", Line: s.line}
 		s.queue = queueEmpty
 		return false
+
 	case queueBang:
 		if next == '=' {
 			s.Next <- Token{Type: BANG_EQUAL, Lexeme: "!=", Line: s.line}
@@ -82,6 +85,26 @@ func (s *Scanner) handleQueue(next rune) bool {
 			return true
 		}
 		s.Next <- Token{Type: BANG, Lexeme: "!", Line: s.line}
+		s.queue = queueEmpty
+		return false
+
+	case queueLess:
+		if next == '=' {
+			s.Next <- Token{Type: LESS_EQUAL, Lexeme: "<=", Line: s.line}
+			s.queue = queueEmpty
+			return true
+		}
+		s.Next <- Token{Type: LESS, Lexeme: "<", Line: s.line}
+		s.queue = queueEmpty
+		return false
+
+	case queueGreater:
+		if next == '=' {
+			s.Next <- Token{Type: GREATER_EQUAL, Lexeme: ">=", Line: s.line}
+			s.queue = queueEmpty
+			return true
+		}
+		s.Next <- Token{Type: GREATER, Lexeme: ">", Line: s.line}
 		s.queue = queueEmpty
 		return false
 	}
