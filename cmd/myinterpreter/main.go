@@ -27,9 +27,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	var code int
 	line := 1
+	var exitCode int
+	var state State
+
 	for _, b := range fileContents {
+		switch state {
+		case EQUAL:
+			if b == '=' {
+				fmt.Println("EQUAL_EQUAL == null")
+				state = DEFAULT
+				continue
+			}
+			fmt.Println("EQUAL = null")
+			state = DEFAULT
+		}
 		switch b {
 		case '(':
 			fmt.Println("LEFT_PAREN ( null")
@@ -54,7 +66,7 @@ func main() {
 		case '!':
 			fmt.Println("BANG ! null")
 		case '=':
-			fmt.Println("EQUAL = null")
+			state = EQUAL
 		case '<':
 			fmt.Println("LESS < null")
 		case '>':
@@ -64,11 +76,24 @@ func main() {
 
 		default:
 			fmt.Fprintf(os.Stderr, "[line %d] Error: Unexpected character: %s\n", line, string(b))
-			code = 65
+			exitCode = 65
 		}
 	}
+	switch state {
+	case EQUAL:
+		fmt.Println("EQUAL = null")
+		state = DEFAULT
+	}
+
 	fmt.Println("EOF  null")
-	if code != 0 {
-		os.Exit(code)
+	if exitCode != 0 {
+		os.Exit(exitCode)
 	}
 }
+
+type State int
+
+const (
+	DEFAULT State = iota
+	EQUAL
+)
