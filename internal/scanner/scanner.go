@@ -126,6 +126,7 @@ func (s *Scanner) handleQueue(next rune) bool {
 	case queueComment:
 		if next == '\n' || next == 0 {
 			s.queue = queueEmpty
+			s.line++
 		}
 		// eat it
 		return true
