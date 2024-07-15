@@ -19,6 +19,8 @@ const (
 	queueBang
 	queueLess
 	queueGreater
+	queueSlash
+	queueComment
 )
 
 func (s *Scanner) ScanTokens() {
@@ -47,6 +49,8 @@ func (s *Scanner) ScanTokens() {
 			s.Next <- Token{Type: SEMICOLON, Lexeme: ";", Line: s.line}
 		case '*':
 			s.Next <- Token{Type: STAR, Lexeme: "*", Line: s.line}
+		case '/':
+			s.queue = queueSlash
 		case '<':
 			s.queue = queueLess
 		case '>':
@@ -107,6 +111,21 @@ func (s *Scanner) handleQueue(next rune) bool {
 		s.Next <- Token{Type: GREATER, Lexeme: ">", Line: s.line}
 		s.queue = queueEmpty
 		return false
+
+	case queueSlash:
+		if next == '/' {
+			s.queue = queueComment
+			return true
+		}
+		s.Next <- Token{Type: SLASH, Lexeme: "/", Line: s.line}
+		s.queue = queueEmpty
+		return false
+
+	case queueComment:
+		if next == '\n' || next == 0 {
+			s.queue = queueEmpty
+		}
+		return true
 	}
 	return false
 }
