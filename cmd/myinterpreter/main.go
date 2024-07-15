@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/codecrafters-io/interpreter-starter-go/internal/scanner"
 )
 
 func main() {
@@ -27,73 +29,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	line := 1
 	var exitCode int
-	var state State
+	scan := scanner.New(string(fileContents))
+	go scan.ScanTokens()
 
-	for _, b := range fileContents {
-		switch state {
-		case EQUAL:
-			if b == '=' {
-				fmt.Println("EQUAL_EQUAL == null")
-				state = DEFAULT
-				continue
-			}
-			fmt.Println("EQUAL = null")
-			state = DEFAULT
-		}
-		switch b {
-		case '(':
-			fmt.Println("LEFT_PAREN ( null")
-		case ')':
-			fmt.Println("RIGHT_PAREN ) null")
-		case '{':
-			fmt.Println("LEFT_BRACE { null")
-		case '}':
-			fmt.Println("RIGHT_BRACE } null")
-		case ',':
-			fmt.Println("COMMA , null")
-		case '.':
-			fmt.Println("DOT . null")
-		case '-':
-			fmt.Println("MINUS - null")
-		case '+':
-			fmt.Println("PLUS + null")
-		case ';':
-			fmt.Println("SEMICOLON ; null")
-		case '*':
-			fmt.Println("STAR * null")
-		case '!':
-			fmt.Println("BANG ! null")
-		case '=':
-			state = EQUAL
-		case '<':
-			fmt.Println("LESS < null")
-		case '>':
-			fmt.Println("GREATER > null")
-		case '/':
-			fmt.Println("SLASH / null")
-
-		default:
-			fmt.Fprintf(os.Stderr, "[line %d] Error: Unexpected character: %s\n", line, string(b))
+	for tok := range scan.Next {
+		if tok.Type == scanner.INVALID {
+			fmt.Fprintf(os.Stderr, "[line %d] Error: Unexpected character: %s\n", tok.Line, tok.Lexeme)
 			exitCode = 65
+			continue
 		}
-	}
-	switch state {
-	case EQUAL:
-		fmt.Println("EQUAL = null")
-		state = DEFAULT
-	}
 
-	fmt.Println("EOF  null")
+		fmt.Printf("%s %s null\n", tok.Type, tok.Lexeme)
+	}
 	if exitCode != 0 {
 		os.Exit(exitCode)
 	}
 }
-
-type State int
-
-const (
-	DEFAULT State = iota
-	EQUAL
-)
