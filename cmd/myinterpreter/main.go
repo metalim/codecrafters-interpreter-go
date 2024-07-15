@@ -27,6 +27,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	var code int
+	line := 1
 	for _, b := range fileContents {
 		switch b {
 		case '(':
@@ -61,8 +63,12 @@ func main() {
 			fmt.Println("SLASH / null")
 
 		default:
-			panic("Unknown character")
+			fmt.Fprintf(os.Stderr, "[line %d] Error: Unexpected character: %s\n", line, string(b))
+			code = 65
 		}
 	}
 	fmt.Println("EOF  null")
+	if code != 0 {
+		os.Exit(code)
+	}
 }
