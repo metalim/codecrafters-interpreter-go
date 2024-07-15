@@ -61,6 +61,8 @@ func (s *Scanner) ScanTokens() {
 			s.queue = queueBang
 		case '\n':
 			s.line++
+		case ' ', '\r', '\t':
+			// eat it
 		default:
 			s.Next <- Token{Type: INVALID, Lexeme: string(b), Line: s.line}
 		}
@@ -125,6 +127,7 @@ func (s *Scanner) handleQueue(next rune) bool {
 		if next == '\n' || next == 0 {
 			s.queue = queueEmpty
 		}
+		// eat it
 		return true
 	}
 	return false
