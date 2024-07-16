@@ -20,6 +20,9 @@ func Parse(source string) (*AST, error) {
 		case scanner.NUMBER:
 			ast.nodes = append(ast.nodes, &Number{value: t.Literal})
 
+		case scanner.STRING:
+			ast.nodes = append(ast.nodes, &String{value: t.Literal})
+
 		default:
 			ast.nodes = append(ast.nodes, &Keyword{value: t.Lexeme})
 		}
@@ -56,6 +59,14 @@ type Number struct {
 
 func (n *Number) Write(w io.Writer) {
 	io.WriteString(w, n.value)
+}
+
+type String struct {
+	value string
+}
+
+func (s *String) Write(w io.Writer) {
+	io.WriteString(w, s.value)
 }
 
 type Binary struct {
