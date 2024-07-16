@@ -26,6 +26,7 @@ const (
 	BANG
 	BANG_EQUAL
 	STRING
+	NUMBER
 )
 
 type Token struct {

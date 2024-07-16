@@ -14,7 +14,7 @@ func New(source string) *Scanner {
 }
 
 func (s *Scanner) ScanTokens() {
-	for r := s.scan(); r != 0; r = s.scan() {
+	for r := s.advance(); r != 0; r = s.advance() {
 		switch r {
 		case '(':
 			s.emit(LEFT_PAREN)
@@ -38,7 +38,7 @@ func (s *Scanner) ScanTokens() {
 			s.emit(STAR)
 		case '/':
 			if s.match('/') {
-				for r = s.scan(); r != '\n' && r != 0; r = s.scan() {
+				for r = s.advance(); r != '\n' && r != 0; r = s.advance() {
 				}
 				if r == '\n' {
 					s.line++
@@ -77,7 +77,7 @@ func (s *Scanner) ScanTokens() {
 		case ' ', '\r', '\t':
 			s.eat()
 		case '"':
-			for r = s.scan(); r != '"' && r != 0; r = s.scan() {
+			for r = s.advance(); r != '"' && r != 0; r = s.advance() {
 				if r == '\n' {
 					s.line++
 				}
@@ -88,29 +88,63 @@ func (s *Scanner) ScanTokens() {
 				s.emitLiteral(STRING, s.source[s.emitPos+1:s.scanPos-1])
 			}
 		default:
-			s.emitError("Unexpected character: " + string(r))
+			if r >= '0' && r <= '9' {
+				s.advanceDigits()
+				if s.peek() == '.' && s.peekNext() >= '0' && s.peekNext() <= '9' {
+					s.advance()
+					s.advanceDigits()
+					s.emitLiteral(NUMBER, s.source[s.emitPos:s.scanPos])
+				} else {
+					// doh... why? Java nerds
+					s.emitLiteral(NUMBER, s.source[s.emitPos:s.scanPos]+".0")
+				}
+			} else {
+				s.emitError("Unexpected character: " + string(r))
+			}
 		}
 	}
 	s.emit(EOF)
 	close(s.Next)
 }
 
-func (s *Scanner) peek() (r rune, size int) {
+func (s *Scanner) peekSize() (r rune, size int) {
 	if len(s.source[s.scanPos:]) == 0 {
 		return 0, 0
 	}
-	r, size = utf8.DecodeRuneInString(s.source[s.scanPos:])
-	return r, size
+	return utf8.DecodeRuneInString(s.source[s.scanPos:])
 }
 
-func (s *Scanner) scan() rune {
-	r, size := s.peek()
+func (s *Scanner) peek() rune {
+	if len(s.source[s.scanPos:]) == 0 {
+		return 0
+	}
+	r, _ := utf8.DecodeRuneInString(s.source[s.scanPos:])
+	return r
+}
+
+func (s *Scanner) peekNext() rune {
+	if len(s.source[s.scanPos:]) == 0 {
+		return 0
+	}
+	_, size := utf8.DecodeRuneInString(s.source[s.scanPos:])
+	r, _ := utf8.DecodeRuneInString(s.source[s.scanPos+size:])
+	return r
+}
+
+func (s *Scanner) advance() rune {
+	r, size := s.peekSize()
 	s.scanPos += size
 	return r
 }
 
+func (s *Scanner) advanceDigits() {
+	for r := s.peek(); r >= '0' && r <= '9'; r = s.peek() {
+		s.advance()
+	}
+}
+
 func (s *Scanner) match(expected rune) bool {
-	peek, size := s.peek()
+	peek, size := s.peekSize()
 	if peek != expected {
 		return false
 	}
