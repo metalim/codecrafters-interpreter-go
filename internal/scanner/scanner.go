@@ -88,17 +88,31 @@ func (s *Scanner) ScanTokens() {
 				s.emitLiteral(STRING, s.source[s.emitPos+1:s.scanPos-1])
 			}
 		default:
-			if r >= '0' && r <= '9' {
+			switch {
+			case isDigit(r):
 				s.advanceDigits()
-				if s.peek() == '.' && s.peekNext() >= '0' && s.peekNext() <= '9' {
+				if s.peek() == '.' && isDigit(s.peekNext()) {
 					s.advance()
 					s.advanceDigits()
-					s.emitLiteral(NUMBER, s.source[s.emitPos:s.scanPos])
+					// truncate excess zeroes
+					lastNonZeroPos := s.scanPos - 1
+					for s.source[lastNonZeroPos] == '0' {
+						lastNonZeroPos--
+					}
+					if s.source[lastNonZeroPos] == '.' {
+						lastNonZeroPos++
+					}
+					s.emitLiteral(NUMBER, s.source[s.emitPos:lastNonZeroPos+1])
 				} else {
 					// doh... why? Java nerds
 					s.emitLiteral(NUMBER, s.source[s.emitPos:s.scanPos]+".0")
 				}
-			} else {
+			case isAlpha(r):
+				for r = s.peek(); isAlphaNumeric(r); r = s.peek() {
+					s.advance()
+				}
+				s.emit(IDENTIFIER)
+			default:
 				s.emitError("Unexpected character: " + string(r))
 			}
 		}
@@ -169,4 +183,16 @@ func (s *Scanner) emitLiteral(t TokenType, literal string) {
 func (s *Scanner) emitError(message string) {
 	s.Next <- Token{Line: s.line, Error: &Error{Message: message, Line: s.line}}
 	s.eat()
+}
+
+func isDigit(r rune) bool {
+	return r >= '0' && r <= '9'
+}
+
+func isAlpha(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '_'
+}
+
+func isAlphaNumeric(r rune) bool {
+	return isAlpha(r) || isDigit(r)
 }

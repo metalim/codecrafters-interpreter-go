@@ -27,6 +27,7 @@ const (
 	BANG_EQUAL
 	STRING
 	NUMBER
+	IDENTIFIER
 )
 
 type Token struct {
