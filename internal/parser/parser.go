@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"errors"
 	"io"
 
 	"github.com/codecrafters-io/interpreter-starter-go/internal/scanner"
@@ -23,11 +22,47 @@ func Parse(source string) (*AST, error) {
 		case scanner.STRING:
 			ast.nodes = append(ast.nodes, &String{value: t.Literal})
 
+		case scanner.LEFT_PAREN:
+			group, err := parseGroup(scan)
+			if err != nil {
+				return nil, err
+			}
+			ast.nodes = append(ast.nodes, group)
+
+		case scanner.RIGHT_PAREN:
+			return nil, &Error{message: "unexpected ')'", line: t.Line}
+
 		default:
 			ast.nodes = append(ast.nodes, &Keyword{value: t.Lexeme})
 		}
 	}
-	return nil, errors.New("unreachable")
+	return ast, nil
+}
+
+func parseGroup(scan *scanner.Scanner) (*Group, error) {
+	g := &Group{}
+	for t := range scan.Next {
+		switch t.Type {
+		case scanner.EOF:
+			return nil, &Error{message: "unmatched '('", line: t.Line}
+		case scanner.LEFT_PAREN:
+			group, err := parseGroup(scan)
+			if err != nil {
+				return nil, err
+			}
+			g.nodes = append(g.nodes, group)
+		case scanner.RIGHT_PAREN:
+			if len(g.nodes) == 0 {
+				return nil, &Error{message: "empty group", line: t.Line}
+			}
+			return g, nil
+		case scanner.STRING:
+			g.nodes = append(g.nodes, &String{value: t.Literal})
+		default:
+			g.nodes = append(g.nodes, &Keyword{value: t.Lexeme})
+		}
+	}
+	return nil, &Error{message: "unmatched '('"}
 }
 
 type AST struct {
@@ -43,6 +78,19 @@ func (a *AST) Write(w io.Writer) {
 
 type Node interface {
 	Write(io.Writer)
+}
+
+type Error struct {
+	message string
+	line    int
+}
+
+func (e *Error) Error() string {
+	return e.message
+}
+
+func (e *Error) LineNumber() int {
+	return e.line
 }
 
 type Keyword struct {
@@ -67,6 +115,19 @@ type String struct {
 
 func (s *String) Write(w io.Writer) {
 	io.WriteString(w, s.value)
+}
+
+type Group struct {
+	nodes []Node
+}
+
+func (g *Group) Write(w io.Writer) {
+	io.WriteString(w, "(group")
+	for _, n := range g.nodes {
+		io.WriteString(w, " ")
+		n.Write(w)
+	}
+	io.WriteString(w, ")")
 }
 
 type Binary struct {

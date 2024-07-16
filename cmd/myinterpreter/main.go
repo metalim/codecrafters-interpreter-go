@@ -60,7 +60,7 @@ func main() {
 		ast, err := parser.Parse(string(fileContents))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error parsing file: %v\n", err)
-			os.Exit(1)
+			os.Exit(65)
 		}
 		ast.Write(os.Stdout)
 
