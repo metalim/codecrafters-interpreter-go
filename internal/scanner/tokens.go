@@ -6,6 +6,7 @@ type TokenType int
 const (
 	INVALID TokenType = iota
 	EOF
+
 	LEFT_PAREN
 	RIGHT_PAREN
 	LEFT_BRACE
@@ -25,9 +26,27 @@ const (
 	EQUAL_EQUAL
 	BANG
 	BANG_EQUAL
+
 	STRING
 	NUMBER
+
 	IDENTIFIER
+
+	AND
+	CLASS
+	ELSE
+	FALSE
+	FOR
+	FUN
+	IF
+	NIL
+	OR
+	RETURN
+	SUPER
+	THIS
+	TRUE
+	VAR
+	WHILE
 )
 
 type Token struct {

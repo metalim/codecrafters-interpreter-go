@@ -111,7 +111,11 @@ func (s *Scanner) ScanTokens() {
 				for r = s.peek(); isAlphaNumeric(r); r = s.peek() {
 					s.advance()
 				}
-				s.emit(IDENTIFIER)
+				if keyword, ok := keywords[s.source[s.emitPos:s.scanPos]]; ok {
+					s.emit(keyword)
+				} else {
+					s.emit(IDENTIFIER)
+				}
 			default:
 				s.emitError("Unexpected character: " + string(r))
 			}
