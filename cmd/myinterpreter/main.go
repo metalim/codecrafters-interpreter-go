@@ -34,13 +34,17 @@ func main() {
 	go scan.ScanTokens()
 
 	for tok := range scan.Next {
-		if tok.Type == scanner.INVALID {
-			fmt.Fprintf(os.Stderr, "[line %d] Error: Unexpected character: %s\n", tok.Line, tok.Lexeme)
+		if tok.Error != nil {
+			fmt.Fprintf(os.Stderr, "[line %d] Error: %s\n", tok.Line, tok.Error)
 			exitCode = 65
 			continue
 		}
 
-		fmt.Printf("%s %s null\n", tok.Type, tok.Lexeme)
+		if len(tok.Literal) == 0 {
+			fmt.Printf("%s %s null\n", tok.Type, tok.Lexeme)
+		} else {
+			fmt.Printf("%s %s %s\n", tok.Type, tok.Lexeme, tok.Literal)
+		}
 	}
 	if exitCode != 0 {
 		os.Exit(exitCode)

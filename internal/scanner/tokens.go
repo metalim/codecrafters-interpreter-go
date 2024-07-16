@@ -25,10 +25,26 @@ const (
 	EQUAL_EQUAL
 	BANG
 	BANG_EQUAL
+	STRING
 )
 
 type Token struct {
-	Type   TokenType
-	Lexeme string
-	Line   int
+	Type    TokenType
+	Line    int
+	Lexeme  string
+	Literal string
+	Error   *Error
+}
+
+type Error struct {
+	Message string
+	Line    int
+}
+
+func (e *Error) Error() string {
+	return e.Message
+}
+
+func (e *Error) LineNumber() int {
+	return e.Line
 }

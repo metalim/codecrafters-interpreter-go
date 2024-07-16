@@ -1,135 +1,138 @@
 package scanner
 
+import "unicode/utf8"
+
 type Scanner struct {
-	source string
-	line   int
-	queue  queue
-	Next   chan Token
+	source           string
+	emitPos, scanPos int
+	line             int
+	Next             chan Token
 }
 
 func New(source string) *Scanner {
 	return &Scanner{source: source, line: 1, Next: make(chan Token, 10)}
 }
 
-type queue int
-
-const (
-	queueEmpty queue = iota
-	queueEqual
-	queueBang
-	queueLess
-	queueGreater
-	queueSlash
-	queueComment
-)
-
 func (s *Scanner) ScanTokens() {
-	for _, b := range s.source {
-		if s.handleQueue(b) {
-			continue
-		}
-		switch b {
+	for r := s.scan(); r != 0; r = s.scan() {
+		switch r {
 		case '(':
-			s.Next <- Token{Type: LEFT_PAREN, Lexeme: "(", Line: s.line}
+			s.emit(LEFT_PAREN)
 		case ')':
-			s.Next <- Token{Type: RIGHT_PAREN, Lexeme: ")", Line: s.line}
+			s.emit(RIGHT_PAREN)
 		case '{':
-			s.Next <- Token{Type: LEFT_BRACE, Lexeme: "{", Line: s.line}
+			s.emit(LEFT_BRACE)
 		case '}':
-			s.Next <- Token{Type: RIGHT_BRACE, Lexeme: "}", Line: s.line}
+			s.emit(RIGHT_BRACE)
 		case ',':
-			s.Next <- Token{Type: COMMA, Lexeme: ",", Line: s.line}
+			s.emit(COMMA)
 		case '.':
-			s.Next <- Token{Type: DOT, Lexeme: ".", Line: s.line}
+			s.emit(DOT)
 		case '-':
-			s.Next <- Token{Type: MINUS, Lexeme: "-", Line: s.line}
+			s.emit(MINUS)
 		case '+':
-			s.Next <- Token{Type: PLUS, Lexeme: "+", Line: s.line}
+			s.emit(PLUS)
 		case ';':
-			s.Next <- Token{Type: SEMICOLON, Lexeme: ";", Line: s.line}
+			s.emit(SEMICOLON)
 		case '*':
-			s.Next <- Token{Type: STAR, Lexeme: "*", Line: s.line}
+			s.emit(STAR)
 		case '/':
-			s.queue = queueSlash
+			if s.match('/') {
+				for r = s.scan(); r != '\n' && r != 0; r = s.scan() {
+				}
+				if r == '\n' {
+					s.line++
+				}
+				s.eat()
+			} else {
+				s.emit(SLASH)
+			}
 		case '<':
-			s.queue = queueLess
+			if s.match('=') {
+				s.emit(LESS_EQUAL)
+			} else {
+				s.emit(LESS)
+			}
 		case '>':
-			s.queue = queueGreater
+			if s.match('=') {
+				s.emit(GREATER_EQUAL)
+			} else {
+				s.emit(GREATER)
+			}
 		case '=':
-			s.queue = queueEqual
+			if s.match('=') {
+				s.emit(EQUAL_EQUAL)
+			} else {
+				s.emit(EQUAL)
+			}
 		case '!':
-			s.queue = queueBang
+			if s.match('=') {
+				s.emit(BANG_EQUAL)
+			} else {
+				s.emit(BANG)
+			}
 		case '\n':
 			s.line++
+			s.eat()
 		case ' ', '\r', '\t':
-			// eat it
+			s.eat()
+		case '"':
+			for r = s.scan(); r != '"' && r != 0; r = s.scan() {
+				if r == '\n' {
+					s.line++
+				}
+			}
+			if r == 0 {
+				s.emitError("Unterminated string.")
+			} else {
+				s.emitLiteral(STRING, s.source[s.emitPos+1:s.scanPos-1])
+			}
 		default:
-			s.Next <- Token{Type: INVALID, Lexeme: string(b), Line: s.line}
+			s.emitError("Unexpected character: " + string(r))
 		}
 	}
-	s.handleQueue(0)
-	s.Next <- Token{Type: EOF, Lexeme: "", Line: s.line}
+	s.emit(EOF)
 	close(s.Next)
 }
 
-func (s *Scanner) handleQueue(next rune) bool {
-	switch s.queue {
-	case queueEqual:
-		if next == '=' {
-			s.Next <- Token{Type: EQUAL_EQUAL, Lexeme: "==", Line: s.line}
-			s.queue = queueEmpty
-			return true
-		}
-		s.Next <- Token{Type: EQUAL, Lexeme: "=", Line: s.line}
-		s.queue = queueEmpty
-		return false
-
-	case queueBang:
-		if next == '=' {
-			s.Next <- Token{Type: BANG_EQUAL, Lexeme: "!=", Line: s.line}
-			s.queue = queueEmpty
-			return true
-		}
-		s.Next <- Token{Type: BANG, Lexeme: "!", Line: s.line}
-		s.queue = queueEmpty
-		return false
-
-	case queueLess:
-		if next == '=' {
-			s.Next <- Token{Type: LESS_EQUAL, Lexeme: "<=", Line: s.line}
-			s.queue = queueEmpty
-			return true
-		}
-		s.Next <- Token{Type: LESS, Lexeme: "<", Line: s.line}
-		s.queue = queueEmpty
-		return false
-
-	case queueGreater:
-		if next == '=' {
-			s.Next <- Token{Type: GREATER_EQUAL, Lexeme: ">=", Line: s.line}
-			s.queue = queueEmpty
-			return true
-		}
-		s.Next <- Token{Type: GREATER, Lexeme: ">", Line: s.line}
-		s.queue = queueEmpty
-		return false
-
-	case queueSlash:
-		if next == '/' {
-			s.queue = queueComment
-			return true
-		}
-		s.Next <- Token{Type: SLASH, Lexeme: "/", Line: s.line}
-		s.queue = queueEmpty
-		return false
-
-	case queueComment:
-		if next == '\n' || next == 0 {
-			s.queue = queueEmpty
-			s.line++
-		}
-		// eat it
-		return true
+func (s *Scanner) peek() (r rune, size int) {
+	if len(s.source[s.scanPos:]) == 0 {
+		return 0, 0
 	}
-	return false
+	r, size = utf8.DecodeRuneInString(s.source[s.scanPos:])
+	return r, size
+}
+
+func (s *Scanner) scan() rune {
+	r, size := s.peek()
+	s.scanPos += size
+	return r
+}
+
+func (s *Scanner) match(expected rune) bool {
+	peek, size := s.peek()
+	if peek != expected {
+		return false
+	}
+	s.scanPos += size
+	return true
+}
+
+func (s *Scanner) eat() {
+	s.emitPos = s.scanPos
+}
+
+func (s *Scanner) emit(t TokenType) {
+	s.Next <- Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line}
+	s.eat()
+}
+
+func (s *Scanner) emitLiteral(t TokenType, literal string) {
+	s.Next <- Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line, Literal: literal}
+	s.eat()
+}
+
+func (s *Scanner) emitError(message string) {
+	s.Next <- Token{Line: s.line, Error: &Error{Message: message, Line: s.line}}
+	s.eat()
 }
