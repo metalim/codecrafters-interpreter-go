@@ -41,6 +41,7 @@ const (
 	IF
 	NIL
 	OR
+	PRINT
 	RETURN
 	SUPER
 	THIS
