@@ -16,24 +16,12 @@ func Parse(source string) (*AST, error) {
 		case scanner.EOF:
 			return ast, nil
 
-		case scanner.NUMBER:
-			ast.nodes = append(ast.nodes, &Number{value: t.Literal})
-
-		case scanner.STRING:
-			ast.nodes = append(ast.nodes, &String{value: t.Literal})
-
-		case scanner.LEFT_PAREN:
-			group, err := parseGroup(scan)
+		default:
+			node, err := parseValue(t, scan)
 			if err != nil {
 				return nil, err
 			}
-			ast.nodes = append(ast.nodes, group)
-
-		case scanner.RIGHT_PAREN:
-			return nil, &Error{message: "unexpected ')'", line: t.Line}
-
-		default:
-			ast.nodes = append(ast.nodes, &Keyword{value: t.Lexeme})
+			ast.nodes = append(ast.nodes, node)
 		}
 	}
 	return ast, nil
@@ -43,26 +31,55 @@ func parseGroup(scan *scanner.Scanner) (*Group, error) {
 	g := &Group{}
 	for t := range scan.Next {
 		switch t.Type {
-		case scanner.EOF:
-			return nil, &Error{message: "unmatched '('", line: t.Line}
-		case scanner.LEFT_PAREN:
-			group, err := parseGroup(scan)
-			if err != nil {
-				return nil, err
-			}
-			g.nodes = append(g.nodes, group)
 		case scanner.RIGHT_PAREN:
 			if len(g.nodes) == 0 {
 				return nil, &Error{message: "empty group", line: t.Line}
 			}
 			return g, nil
-		case scanner.STRING:
-			g.nodes = append(g.nodes, &String{value: t.Literal})
+
 		default:
-			g.nodes = append(g.nodes, &Keyword{value: t.Lexeme})
+			node, err := parseValue(t, scan)
+			if err != nil {
+				return nil, err
+			}
+			g.nodes = append(g.nodes, node)
 		}
 	}
 	return nil, &Error{message: "unmatched '('"}
+}
+
+func parseValue(t *scanner.Token, scan *scanner.Scanner) (Node, error) {
+	switch t.Type {
+
+	case scanner.EOF:
+		return nil, &Error{message: "unexpected EOF", line: t.Line}
+
+	case scanner.NUMBER:
+		return &Number{value: t.Literal}, nil
+
+	case scanner.STRING:
+		return &String{value: t.Literal}, nil
+
+	case scanner.LEFT_PAREN:
+		group, err := parseGroup(scan)
+		if err != nil {
+			return nil, err
+		}
+		return group, nil
+
+	case scanner.RIGHT_PAREN:
+		return nil, &Error{message: "unexpected ')'", line: t.Line}
+
+	case scanner.BANG, scanner.MINUS:
+		node, err := parseValue(<-scan.Next, scan)
+		if err != nil {
+			return nil, err
+		}
+		return &Unary{op: t.Lexeme, node: node}, nil
+
+	default:
+		return &Keyword{value: t.Lexeme}, nil
+	}
 }
 
 type AST struct {
@@ -130,15 +147,29 @@ func (g *Group) Write(w io.Writer) {
 	io.WriteString(w, ")")
 }
 
+type Unary struct {
+	op   string
+	node Node
+}
+
+func (u *Unary) Write(w io.Writer) {
+	io.WriteString(w, "(")
+	io.WriteString(w, u.op)
+	io.WriteString(w, " ")
+	u.node.Write(w)
+	io.WriteString(w, ")")
+}
+
 type Binary struct {
+	op    string
 	left  Node
 	right Node
-	op    string
 }
 
 func (b *Binary) Write(w io.Writer) {
 	io.WriteString(w, "(")
 	io.WriteString(w, b.op)
+	io.WriteString(w, " ")
 	b.left.Write(w)
 	io.WriteString(w, " ")
 	b.right.Write(w)

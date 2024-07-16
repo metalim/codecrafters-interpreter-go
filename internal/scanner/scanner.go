@@ -6,11 +6,11 @@ type Scanner struct {
 	source           string
 	emitPos, scanPos int
 	line             int
-	Next             chan Token
+	Next             chan *Token
 }
 
 func New(source string) *Scanner {
-	return &Scanner{source: source, line: 1, Next: make(chan Token, 10)}
+	return &Scanner{source: source, line: 1, Next: make(chan *Token, 10)}
 }
 
 func (s *Scanner) ScanTokens() {
@@ -175,17 +175,17 @@ func (s *Scanner) eat() {
 }
 
 func (s *Scanner) emit(t TokenType) {
-	s.Next <- Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line}
+	s.Next <- &Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line}
 	s.eat()
 }
 
 func (s *Scanner) emitLiteral(t TokenType, literal string) {
-	s.Next <- Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line, Literal: literal}
+	s.Next <- &Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line, Literal: literal}
 	s.eat()
 }
 
 func (s *Scanner) emitError(message string) {
-	s.Next <- Token{Line: s.line, Error: &Error{Message: message, Line: s.line}}
+	s.Next <- &Token{Line: s.line, Error: &Error{Message: message, Line: s.line}}
 	s.eat()
 }
 
