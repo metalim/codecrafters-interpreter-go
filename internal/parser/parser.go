@@ -17,6 +17,9 @@ func Parse(source string) (*AST, error) {
 		case scanner.EOF:
 			return ast, nil
 
+		case scanner.NUMBER:
+			ast.nodes = append(ast.nodes, &Number{value: t.Literal})
+
 		default:
 			ast.nodes = append(ast.nodes, &Keyword{value: t.Lexeme})
 		}
@@ -45,6 +48,14 @@ type Keyword struct {
 
 func (k *Keyword) Write(w io.Writer) {
 	io.WriteString(w, k.value)
+}
+
+type Number struct {
+	value string
+}
+
+func (n *Number) Write(w io.Writer) {
+	io.WriteString(w, n.value)
 }
 
 type Binary struct {
