@@ -56,6 +56,9 @@ func parseExpression(scan *scanner.Scanner) (Node, error) {
 		t := scan.NextToken()
 		switch t.Type {
 
+		case scanner.INVALID:
+			return nil, &Error{message: t.Error.Error(), line: t.Line}
+
 		case scanner.EOF:
 			if len(nodes) != 1 {
 				return nil, &Error{message: "unexpected EOF", line: t.Line}

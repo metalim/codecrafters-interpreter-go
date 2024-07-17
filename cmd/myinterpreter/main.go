@@ -59,7 +59,11 @@ func main() {
 
 		ast, err := parser.Parse(string(fileContents))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing file: %v\n", err)
+			if e, ok := err.(*parser.Error); ok {
+				fmt.Fprintf(os.Stderr, "Error parsing file: [line %d]: %v\n", e.LineNumber(), e)
+			} else {
+				fmt.Fprintf(os.Stderr, "Error parsing file: %v\n", err)
+			}
 			os.Exit(65)
 		}
 		ast.Write(os.Stdout)
