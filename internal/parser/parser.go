@@ -91,7 +91,8 @@ func parseExpression(scan *scanner.Scanner) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			nodes = append(nodes, &Unary{op: t.Lexeme, node: node})
+			un := &Unary{op: t.Lexeme, node: node}
+			nodes = append(nodes, un.Reordered())
 
 		case scanner.MINUS:
 			if len(nodes) > 1 {
@@ -109,7 +110,7 @@ func parseExpression(scan *scanner.Scanner) (Node, error) {
 				nodes[0] = bin.Reordered()
 			}
 
-		case scanner.PLUS, scanner.STAR, scanner.SLASH:
+		case scanner.PLUS, scanner.STAR, scanner.SLASH, scanner.EQUAL_EQUAL, scanner.BANG_EQUAL, scanner.LESS, scanner.LESS_EQUAL, scanner.GREATER, scanner.GREATER_EQUAL:
 			if len(nodes) != 1 {
 				return nil, &Error{message: "unexpected " + t.Lexeme, line: t.Line}
 			}
@@ -221,12 +222,18 @@ func (b *Binary) Write(w io.Writer) {
 }
 
 var precedence = map[string]int{
-	"+": 1,
-	"-": 1, // binary
-	"*": 2,
-	"/": 2,
-	// "!": 3, // unary
-	// "-": 3, // unary
+	"==": 10,
+	"!=": 10,
+	"<":  20,
+	"<=": 20,
+	">":  20,
+	">=": 20,
+	"+":  30,
+	"-":  30, // binary
+	"*":  40,
+	"/":  40,
+	// "!": 50, // unary
+	// "-": 50, // unary
 }
 
 func (b *Binary) Reordered() Node {
