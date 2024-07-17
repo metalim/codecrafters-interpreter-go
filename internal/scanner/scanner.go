@@ -1,16 +1,33 @@
 package scanner
 
-import "unicode/utf8"
+import (
+	"unicode/utf8"
+)
 
 type Scanner struct {
 	source           string
 	emitPos, scanPos int
 	line             int
-	Next             chan *Token
+	queue            []*Token
+	tokens           chan *Token
 }
 
 func New(source string) *Scanner {
-	return &Scanner{source: source, line: 1, Next: make(chan *Token, 10)}
+	return &Scanner{source: source, line: 1, tokens: make(chan *Token, 10)}
+}
+
+func (s *Scanner) PutBack(t *Token) {
+	s.queue = append(s.queue, t)
+}
+
+func (s *Scanner) NextToken() *Token {
+	if len(s.queue) > 0 {
+		t := s.queue[len(s.queue)-1]
+		s.queue = s.queue[:len(s.queue)-1]
+		return t
+	}
+	t := <-s.tokens
+	return t
 }
 
 func (s *Scanner) ScanTokens() {
@@ -122,7 +139,7 @@ func (s *Scanner) ScanTokens() {
 		}
 	}
 	s.emit(EOF)
-	close(s.Next)
+	close(s.tokens)
 }
 
 func (s *Scanner) peekSize() (r rune, size int) {
@@ -175,17 +192,17 @@ func (s *Scanner) eat() {
 }
 
 func (s *Scanner) emit(t TokenType) {
-	s.Next <- &Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line}
+	s.tokens <- &Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line}
 	s.eat()
 }
 
 func (s *Scanner) emitLiteral(t TokenType, literal string) {
-	s.Next <- &Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line, Literal: literal}
+	s.tokens <- &Token{Type: t, Lexeme: s.source[s.emitPos:s.scanPos], Line: s.line, Literal: literal}
 	s.eat()
 }
 
 func (s *Scanner) emitError(message string) {
-	s.Next <- &Token{Line: s.line, Error: &Error{Message: message, Line: s.line}}
+	s.tokens <- &Token{Line: s.line, Error: &Error{Message: message, Line: s.line}}
 	s.eat()
 }
 

@@ -32,7 +32,7 @@ func main() {
 		scan := scanner.New(string(fileContents))
 		go scan.ScanTokens()
 
-		for tok := range scan.Next {
+		for tok := scan.NextToken(); tok != nil; tok = scan.NextToken() {
 			if tok.Error != nil {
 				fmt.Fprintf(os.Stderr, "[line %d] Error: %s\n", tok.Line, tok.Error)
 				exitCode = 65
