@@ -254,7 +254,8 @@ func (u *Unary) Reordered() Node {
 		// parsed as -(1 * 2)
 		// but should be parsed as (-1) * 2
 		// HINT: unary operators have higher precedence than binary operators
-		u.node, inner.left = inner.left, u
+		u.node = inner.left
+		inner.left = u.Reordered()
 		return inner
 	}
 	return u
